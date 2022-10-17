@@ -1,0 +1,5 @@
+k8s
+Nomad
+docker_swarm
+mesos
+openshift
