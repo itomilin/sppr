@@ -7,31 +7,6 @@
 #include <numeric>
 #include <cmath>
 
-const std::vector<std::string> PATHS_BO
-{
-#ifdef IAC
-    "./data/iac_1_file_type.txt",
-    "./data/iac_2_com.txt",
-    "./data/iac_3_noagent.txt",
-    "./data/iac_4_iden.txt",
-    "./data/iac_5_doc.txt",
-#endif
-
-#ifdef ORCH
-    "./data/orch_1_using.txt",
-    "./data/orch_2_com.txt",
-    "./data/orch_3_scaling.txt",
-    "./data/orch_4_vault.txt",
-    "./data/orch_5_doc.txt",
-    "./data/orch_6_ui.txt",
-#endif
-
-#ifdef TEST
-    "./data/price.txt",
-    "./data/year.txt",
-    "./data/odom.txt",
-#endif
-};
 
 #ifdef IAC
 const char PATH_TO_Power_DATA[] = "./data/iac_power.txt";
@@ -84,7 +59,7 @@ void distractionArray(double** arr, int n);
 //расстановка мест
 void placeRating(const double arr[VARIANT], int A[VARIANT]);
 
-void read_names( std::vector<std::string> &vec, std::ifstream& in )
+void read_from_file( std::vector<std::string> &vec, std::ifstream& in )
 {
     std::string data {};
     while( in >> data )
@@ -93,10 +68,8 @@ void read_names( std::vector<std::string> &vec, std::ifstream& in )
     }
 }
 
-void build_matrix( std::vector<int> vars, bool greater )
+void build_matrix( std::vector<int> vars, bool greater, double** matrix )
 {
-    //int matrix[VARIANT][VARIANT] = { 0 };
-    int matrix[6][6] = { 0 };
     for ( int i = 0; i < vars.size(); ++i )
     {
         for ( int j = 0; j < vars.size(); ++j )
@@ -119,16 +92,6 @@ void build_matrix( std::vector<int> vars, bool greater )
             }
         }
     }
-
-    for ( int i = 0; i < vars.size(); ++i )
-    {
-        for ( int j = 0; j < vars.size(); ++j )
-        {
-            std::cout << matrix[i][j] << " ";
-        }
-        std::cout << std::endl;
-    }
-
 }
 
 int main()
@@ -140,21 +103,28 @@ int main()
     double kmax[VARIANT] = { 0 };
     double kopt[VARIANT] = { 0 };
 
-    std::vector<int> price { 143000, 150000, 148000 };
-    std::vector<int> year  { 2008, 2009, 2009 };
-    std::vector<int> trip  { 170000, 140000, 150000 };
+    std::vector<std::vector<int>> prep
+    {
+        { 143000, 150000, 148000 },
+        { 2008, 2009, 2009 },
+        { 170000, 140000, 150000 },
+    };
+
     // false если меньшее значение преобладает над большим.
     // true если большее значение предобладает над меньшим.
-    build_matrix( price, false );
-    build_matrix( year, true );
-    build_matrix( trup, false );
+    std::vector<bool> prep_bm
+    {
+        false,
+        true,
+        false,
+    };
 
     // Read names.
     std::vector<std::string> names;
     std::ifstream in_names;
 //    in_names.exceptions(std::ios::failbit | std::ios::badbit);
     in_names.open(PROD_NAMES.c_str());
-    read_names( names, in_names );
+    read_from_file( names, in_names );
 
     //считывание весовых коэффициентов
     std::ifstream in_power;
@@ -175,22 +145,16 @@ int main()
         std::cout << pref_names[i] << ": " << powerArr[i] << std::endl;
     }
     in_power.close();
-    for (int k = 0; k < PATHS_BO.size(); k++)
+    for (int k = 0; k < prep.size(); k++)
     {
-        //подготовка данных
-        std::ifstream in; //поток дл¤ считывани¤ основных данных
-        in.exceptions(std::ios::failbit | std::ios::badbit);
-        std::string str;
-        str = PATHS_BO[k];
         std::cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" << std::endl;
-        std::cout << str << std::endl;
-        in.open(str);
+        std::cout << pref_names[k] << std::endl;
 
         double** Dom_data = createArr(VARIANT, VARIANT);
-        readFile(Dom_data, VARIANT, VARIANT, in);
+        build_matrix( prep[k], prep_bm[k], Dom_data );
+        //readFile(Dom_data, VARIANT, VARIANT, in);
         writeArr(Dom_data, VARIANT, VARIANT);
 
-        in.close();
         //обработка данных
         std::vector<int> dom_Array;
         std::vector<int> block_Array;
@@ -345,11 +309,16 @@ int main()
 //выделение памяти для динамического двухмерного массива
 double** createArr(int n, int m)
 {
-    double** A;
-    A = new double* [n];
+    double** A = new double* [n];
     for (int i = 0; i < n; i++)
     {
         A[i] = new double[m];
+    }
+    // Fill zeros.
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < m; j++) {
+            A[i][j] = 0;
+        }
     }
     return A;
 }
