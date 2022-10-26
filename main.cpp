@@ -7,41 +7,61 @@
 #include <numeric>
 #include <cmath>
 
-// Testing data.
-//const std::string PATH_TO_DATA0 = "./data/price.txt";
-//const std::string PATH_TO_DATA1 = "./data/year.txt";
-//const std::string PATH_TO_DATA2 = "./data/odom.txt";
+const std::vector<std::string> PATHS_BO
+{
+#ifdef IAC
+    "./data/iac_1_file_type.txt",
+    "./data/iac_2_com.txt",
+    "./data/iac_3_noagent.txt",
+    "./data/iac_4_iden.txt",
+    "./data/iac_5_doc.txt",
+#endif
 
-//const std::string PATH_TO_DATA0 = "./data/salary.txt";
-//const std::string PATH_TO_DATA1 = "./data/family.txt";
-//const std::string PATH_TO_DATA2 = "./data/medicine.txt";
-//const std::string PATH_TO_DATA3 = "./data/housecoef.txt";
-//const std::string PATH_TO_DATA4 = "./data/ecology.txt";
-//const std::string PATH_TO_DATA5 = "./data/dacha.txt";
+#ifdef ORCH
+    "./data/orch_1_using.txt",
+    "./data/orch_2_com.txt",
+    "./data/orch_3_scaling.txt",
+    "./data/orch_4_vault.txt",
+    "./data/orch_5_doc.txt",
+    "./data/orch_6_ui.txt",
+#endif
 
-// My.
-const std::string PATH_TO_DATA0 = "./data/using.txt";
-const std::string PATH_TO_DATA1 = "./data/com_support.txt";
-const std::string PATH_TO_DATA2 = "./data/scaling.txt";
-const std::string PATH_TO_DATA3 = "./data/native_vault.txt";
-const std::string PATH_TO_DATA4 = "./data/doc.txt";
-const std::string PATH_TO_DATA5 = "./data/native_ui.txt";
+#ifdef TEST
+    "./data/price.txt",
+    "./data/year.txt",
+    "./data/odom.txt",
+#endif
+};
 
-const char PATH_TO_Power_DATA[] = "./data/power.txt";
-const std::string ORCH_NAMES = "./data/orch_names.txt";
+#ifdef IAC
+const char PATH_TO_Power_DATA[] = "./data/iac_power.txt";
+const std::string PROD_NAMES = "./data/iac_names.txt";
+
+const int VARIANT = 5;
+const int BO = 5;
+#endif
+
+#ifdef ORCH
+const char PATH_TO_Power_DATA[] = "./data/orch_power.txt";
+const std::string PROD_NAMES = "./data/orch_names.txt";
 
 const int VARIANT = 5;
 const int BO = 6;
+#endif
 
-// Test for lada.
-//const int VARIANT = 3;
-//const int BO = 3;
+#ifdef TEST
+const char PATH_TO_Power_DATA[] = "./data/lada_power.txt";
+const std::string PROD_NAMES = "./data/lada_names.txt";
 
+const int VARIANT = 3;
+const int BO = 3;
+#endif
 
 //выделение памяти дл¤ динамического двумерного массива
 double** createArr(int n, int m);
 //подсчет весовые коэффициенты
-void readPower(double* arr, double n, std::ifstream& in);
+void readPower(double* arr, double n, std::ifstream& in,
+               std::vector<std::string> &pref_names);
 //посчитать массив размером NxM из вход¤щего потока
 void readFile(double** arr, double n, double m, std::ifstream& in);
 //определение доминирующего варианта
@@ -73,6 +93,44 @@ void read_names( std::vector<std::string> &vec, std::ifstream& in )
     }
 }
 
+void build_matrix( std::vector<int> vars, bool greater )
+{
+    //int matrix[VARIANT][VARIANT] = { 0 };
+    int matrix[6][6] = { 0 };
+    for ( int i = 0; i < vars.size(); ++i )
+    {
+        for ( int j = 0; j < vars.size(); ++j )
+        {
+            if ( i == j )
+            {
+                matrix[i][j] = -1;
+                continue;
+            }
+
+            if ( !greater && vars.at(i) <= vars.at(j) )
+            {
+                matrix[i][j] = 1;
+                continue;
+            }
+
+            if ( greater && vars.at(i) >= vars.at(j) )
+            {
+                matrix[i][j] = 1;
+            }
+        }
+    }
+
+    for ( int i = 0; i < vars.size(); ++i )
+    {
+        for ( int j = 0; j < vars.size(); ++j )
+        {
+            std::cout << matrix[i][j] << " ";
+        }
+        std::cout << std::endl;
+    }
+
+}
+
 int main()
 {
     setlocale(LC_ALL, "RUS");
@@ -82,11 +140,20 @@ int main()
     double kmax[VARIANT] = { 0 };
     double kopt[VARIANT] = { 0 };
 
+    std::vector<int> price { 143000, 150000, 148000 };
+    std::vector<int> year  { 2008, 2009, 2009 };
+    std::vector<int> trip  { 170000, 140000, 150000 };
+    // false если меньшее значение преобладает над большим.
+    // true если большее значение предобладает над меньшим.
+    build_matrix( price, false );
+    build_matrix( year, true );
+    build_matrix( trup, false );
+
     // Read names.
     std::vector<std::string> names;
     std::ifstream in_names;
 //    in_names.exceptions(std::ios::failbit | std::ios::badbit);
-    in_names.open(ORCH_NAMES.c_str());
+    in_names.open(PROD_NAMES.c_str());
     read_names( names, in_names );
 
     //считывание весовых коэффициентов
@@ -96,52 +163,33 @@ int main()
 
     double* powerArr = new double[BO];
     //powerArr - массив с весовыми коэффициентами
-    readPower(powerArr, BO, in_power);
+    std::vector<std::string> pref_names;
+    readPower(powerArr, BO, in_power, pref_names);
 
     double sum { 0 };
     sum = std::accumulate(powerArr, powerArr + BO, sum );
     std::cout << "Sum of weight coeff: " << sum << std::endl;
-    std::cout << "Весовые коэффициенты:" << std::endl;
+    std::cout << "Предпочтения:" << std::endl;
     for (int i = 0; i < BO; ++i)
     {
-        std::cout << powerArr[i] << std::endl;
+        std::cout << pref_names[i] << ": " << powerArr[i] << std::endl;
     }
     in_power.close();
-    for (int k = 0; k < BO; k++)
+    for (int k = 0; k < PATHS_BO.size(); k++)
     {
         //подготовка данных
         std::ifstream in; //поток дл¤ считывани¤ основных данных
         in.exceptions(std::ios::failbit | std::ios::badbit);
         std::string str;
-        switch (k)
-        {
-        case 0:
-            str = PATH_TO_DATA0;
-            break;
-        case 1:
-            str = PATH_TO_DATA1;
-            break;
-        case 2:
-            str = PATH_TO_DATA2;
-            break;
-        case 3:
-            str = PATH_TO_DATA3;
-            break;
-        case 4:
-            str = PATH_TO_DATA4;
-            break;
-        case 5:
-            str = PATH_TO_DATA5;
-            break;
-        default:
-            break;
-        }
+        str = PATHS_BO[k];
         std::cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" << std::endl;
         std::cout << str << std::endl;
         in.open(str);
+
         double** Dom_data = createArr(VARIANT, VARIANT);
         readFile(Dom_data, VARIANT, VARIANT, in);
         writeArr(Dom_data, VARIANT, VARIANT);
+
         in.close();
         //обработка данных
         std::vector<int> dom_Array;
@@ -282,6 +330,7 @@ int main()
         int sum = dom_value + block_value + turn_value + kmax_value +
                 kopt_value;
         if ( i == index ) {
+            // Unix only (light text).
             std::cout << "\033[1;31m"  << std::setw(0) << names[i] << std::setw(20 - names[i].size()) << block_value <<
                          std::setw(8) << dom_value << std::setw(9) << turn_value << std::setw(9) <<
                          kmax_value << std::setw(9) << kopt_value << std::setw(13) << sum << "\033[0m" << std::endl;
@@ -305,10 +354,14 @@ double** createArr(int n, int m)
     return A;
 }
 //считать весовые коэффициенты
-void readPower(double* arr, double n, std::ifstream& in)
+void readPower(double* arr, double n, std::ifstream& in,
+               std::vector<std::string> &pref_names)
 {
+    std::string name {""};
     for (int j = 0; j < n; j++)
     {
+        in >> name;
+        pref_names.emplace_back( name );
         in >> arr[j];
     }
 }
